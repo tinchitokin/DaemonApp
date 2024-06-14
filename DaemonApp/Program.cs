@@ -68,7 +68,6 @@ namespace DaemonApp
             }
         }
 
-
         private static async Task<AuthenticationResult> GetAccessTokenWithMSAL(string resourceId)
         {
             X509Certificate2 cert = await GetCertificateFromKeyVault(certName);
@@ -89,50 +88,6 @@ namespace DaemonApp
 
             return result;
         }
-
-
-        //private static async Task<AuthenticationResult> GetAccessToken(string resourceId)
-        //{
-        //    AuthenticationResult result = null;
-        //    int retryCount = 0;
-        //    bool retry = false;
-
-        //    // Initialize the Certificate Credential to be used by ADAL.
-        //    X509Certificate2 cert = await GetCertificateFromKeyVault(certName);
-        //    if (cert == null)
-        //    {
-        //        Console.WriteLine($"Cannot find active certificate '{certName}' in Azure Key Vault. Please check configuration");
-        //    }
-
-        //    certCred = new ClientAssertionCertificate(clientId, cert);
-
-        //    do
-        //    {
-        //        retry = false;
-
-        //        try
-        //        {
-        //            result = await authContext.AcquireTokenAsync(resourceId, certCred);
-        //        }
-        //        catch (AdalException ex)
-        //        {
-        //            if (ex.ErrorCode == "temporarily_unavailable")
-        //            {
-        //                retry = true;
-        //                retryCount++;
-        //                Thread.Sleep(3000);
-        //            }
-
-        //            Console.WriteLine(
-        //                String.Format("An error occurred while acquiring a token\nTime: {0}\nError: {1}\nRetry: {2}\n",
-        //                DateTime.Now.ToString(),
-        //                ex.ToString(),
-        //                retry.ToString()));
-        //        }
-
-        //    } while ((retry == true) && (retryCount < 3));
-        //    return result;
-        //}
 
         private static async Task<X509Certificate2> GetCertificateFromKeyVault(string certName)
         {
