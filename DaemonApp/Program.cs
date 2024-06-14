@@ -34,6 +34,7 @@ namespace DaemonApp
         {
             var result = CallAPI().Result;
             Console.WriteLine(result);
+            Console.ReadKey();
         }
 
         static async Task<string> CallAPI()
