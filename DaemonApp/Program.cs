@@ -1,15 +1,16 @@
-﻿using Microsoft.IdentityModel.Clients.ActiveDirectory;
+﻿using Azure.Identity;
+using Azure.Security.KeyVault.Certificates;
+using Azure.Security.KeyVault.Secrets;
+using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using System;
-using System.Collections.Generic;
 using System.Configuration;
 using System.Globalization;
-using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Azure;
 
 namespace DaemonApp
 {
@@ -18,22 +19,31 @@ namespace DaemonApp
         private static string aadInstance = ConfigurationManager.AppSettings["ida:AADInstance"];
         private static string tenant = ConfigurationManager.AppSettings["ida:Tenant"];
         private static string clientId = ConfigurationManager.AppSettings["ida:ClientId"];
+        private static string keyVaultUri = ConfigurationManager.AppSettings["ida:KeyVaultUri"];
         private static string certName = ConfigurationManager.AppSettings["ida:CertName"];
 
-        static string authority = String.Format(CultureInfo.InvariantCulture, aadInstance, tenant);
+        static string authority = string.Format(CultureInfo.InvariantCulture, aadInstance, tenant);
 
         private static HttpClient httpClient = new HttpClient();
         private static AuthenticationContext authContext = new AuthenticationContext(authority);
         private static ClientAssertionCertificate certCred = null;
 
-        private static string audienceUri = ConfigurationManager.AppSettings["ida:AudienceUri"];
+        private static string audienceUri = ConfigurationManager.AppSettings["ida:KeyVaultUri"];
 
         private static string graphUrl = "https://graph.microsoft.com/v1.0/users";
 
         static void Main(string[] args)
         {
-            var result = CallAPI().Result;
-            Console.WriteLine(result);
+            try
+            {
+                var result = CallAPI().Result;
+                Console.WriteLine(result);
+               
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
             Console.ReadKey();
         }
 
@@ -68,10 +78,10 @@ namespace DaemonApp
             bool retry = false;
 
             // Initialize the Certificate Credential to be used by ADAL.
-            X509Certificate2 cert = ReadCertificateFromStore(certName);
+            X509Certificate2 cert = await GetCertificateFromKeyVault(certName);
             if (cert == null)
             {
-                Console.WriteLine($"Cannot find active certificate '{certName}' in certificates for current user. Please check configuration");
+                Console.WriteLine($"Cannot find active certificate '{certName}' in Azure Key Vault. Please check configuration");
             }
 
             certCred = new ClientAssertionCertificate(clientId, cert);
@@ -104,25 +114,42 @@ namespace DaemonApp
             return result;
         }
 
-        private static X509Certificate2 ReadCertificateFromStore(string certName)
+        private static async Task<X509Certificate2> GetCertificateFromKeyVault(string certName)
         {
-            X509Certificate2 cert = null;
-            X509Store store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
-            store.Open(OpenFlags.ReadOnly);
-            X509Certificate2Collection certCollection = store.Certificates;
+            var keyVaultUriBuilder = new UriBuilder(keyVaultUri);
+            var keyVaultUrl = keyVaultUriBuilder.Uri;
 
-            // Find unexpired certificates.
-            X509Certificate2Collection currentCerts = certCollection.Find(X509FindType.FindByTimeValid, DateTime.Now, false);
+            var credential = new DefaultAzureCredential();
+            var certificateClient = new CertificateClient(keyVaultUrl, credential);
 
-            // From the collection of unexpired certificates, find the ones with the correct name.
-            X509Certificate2Collection signingCert = currentCerts.Find(
-                X509FindType.FindBySubjectDistinguishedName, certName, false);
+            try
+            {
+                // Retrieve the certificate with its policy directly
+                KeyVaultCertificateWithPolicy certificate = await certificateClient.GetCertificateAsync(certName);
 
-            // Return the first certificate in the collection, has the right name and is current.
-            cert = signingCert.OfType<X509Certificate2>().OrderByDescending(c => c.NotBefore).FirstOrDefault();
-            store.Close();
-            return cert;
+                // Check if the certificate contains a private key
+                if (certificate.Policy.Exportable == true)
+                {
+                    // Download the certificate's secret which contains the private key
+                    var secretClient = new SecretClient(keyVaultUrl, credential);
+                    KeyVaultSecret secret = await secretClient.GetSecretAsync(certName);
+
+                    // Convert the secret value to a byte array and create an X509Certificate2 object
+                    byte[] certBytes = Convert.FromBase64String(secret.Value);
+                    return new X509Certificate2(certBytes, (string)null, X509KeyStorageFlags.MachineKeySet);
+                }
+                else
+                {
+                    Console.WriteLine("The certificate does not contain a private key or is not marked as exportable.");
+                    return null;
+                }
+            }
+            catch (RequestFailedException ex)
+            {
+                Console.WriteLine($"An error occurred while retrieving the certificate: {ex.Message}");
+                return null;
+            }
         }
-    
+
     }
 }
