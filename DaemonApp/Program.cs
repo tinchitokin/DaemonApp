@@ -28,7 +28,7 @@ namespace DaemonApp
         private static AuthenticationContext authContext = new AuthenticationContext(authority);
         private static ClientAssertionCertificate certCred = null;
 
-        private static string audienceUri = ConfigurationManager.AppSettings["ida:KeyVaultUri"];
+        private static string audienceUri = ConfigurationManager.AppSettings["ida:AudienceUri"];
 
         private static string graphUrl = "https://graph.microsoft.com/v1.0/users";
 
@@ -38,11 +38,11 @@ namespace DaemonApp
             {
                 var result = CallAPI().Result;
                 Console.WriteLine(result);
-               
+
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                Console.WriteLine(ex);
             }
             Console.ReadKey();
         }
