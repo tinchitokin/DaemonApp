@@ -70,21 +70,21 @@ namespace DaemonApp
 
         private static async Task<AuthenticationResult> GetAccessTokenWithMSAL(string resourceId)
         {
-            X509Certificate2 cert = await GetCertificateFromKeyVault(certName);
+            var cert = await GetCertificateFromKeyVault(certName);
             if (cert == null)
             {
                 Console.WriteLine($"Cannot find active certificate '{certName}' in Azure Key Vault. Please check configuration");
                 return null;
             }
 
-            IConfidentialClientApplication app = ConfidentialClientApplicationBuilder.Create(clientId)
+            var app = ConfidentialClientApplicationBuilder.Create(clientId)
                 .WithAuthority(new Uri(authority))
                 .WithCertificate(cert)
                 .Build();
 
             string[] scopes = new string[] { $"{resourceId}/.default" };
 
-            AuthenticationResult result = await app.AcquireTokenForClient(scopes).ExecuteAsync();
+            var result = await app.AcquireTokenForClient(scopes).ExecuteAsync();
 
             return result;
         }
