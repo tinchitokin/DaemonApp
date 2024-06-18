@@ -1,7 +1,7 @@
-#Create cert and store in cert store in Windows
+#1) Create cert and store in cert store in Windows
 $cert=New-SelfSignedCertificate -Subject "CN=GraphDaemonWithCert" -CertStoreLocation "Cert:\CurrentUser\My"  -KeyExportPolicy Exportable -KeySpec Signature
 
-#extract pfx
+#2) Extract pfx
 $certThumbprint = "961c4416a321a0d587fbbc10b38626c9542526fe" # YOUR CERTIFICATE THUMBPRINT
 $cert = Get-ChildItem -Path Cert:\CurrentUser\My\$certThumbprint
 $certPassword = ConvertTo-SecureString -String "YOUR PASSSWORD GOES HERE, THIS IS A PLACEHODLER!" -Force -AsPlainText # YOUR PASSWORD
